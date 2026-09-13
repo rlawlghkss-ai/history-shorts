@@ -1,0 +1,43 @@
+name: Daily History Shorts Upload
+
+on:
+  schedule:
+    # UTC 00:00 = 한국시간(KST) 09:00
+    - cron: "0 0 * * *"
+  workflow_dispatch: {}  # 수동 실행 버튼용
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 파이썬 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: ffmpeg 및 한글 폰트 설치
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-noto-cjk
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 파이프라인 실행
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+        run: python main.py
+
+      - name: 사용한 주제 기록 커밋
+        if: always()
+        run: |
+          git config user.name "history-shorts-bot"
+          git config user.email "actions@github.com"
+          git add data/used_topics.json
+          git diff --cached --quiet || git commit -m "chore: update used topics [skip ci]"
+          git push
