@@ -35,6 +35,39 @@ def save_used_topics(used):
         json.dump(used, f, ensure_ascii=False, indent=2)
 
 
+def fetch_page_media(page_title: str, limit: int = 5) -> list:
+    """해당 위키백과 문서 안에 실린 사진들을 추가로 가져온다 (아이콘/로고류는 제외)."""
+    if not page_title:
+        return []
+    try:
+        url = f"https://en.wikipedia.org/api/rest_v1/page/media-list/{page_title}"
+        headers = {"User-Agent": "history-shorts-bot/1.0 (personal project)"}
+        resp = requests.get(url, headers=headers, timeout=20)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+    except Exception as e:
+        print(f"본문 이미지 목록 가져오기 실패: {e}")
+        return []
+
+    results = []
+    for item in items:
+        if item.get("type") != "image":
+            continue
+        thumb = item.get("thumbnail") or {}
+        src = thumb.get("source")
+        if not src or src.lower().endswith(".svg"):
+            continue
+        if thumb.get("width", 0) < 200:
+            continue
+        title_lower = (item.get("title") or "").lower()
+        if any(bad in title_lower for bad in ["icon", "edit-", "logo", "commons-logo"]):
+            continue
+        results.append(src)
+        if len(results) >= limit:
+            break
+    return results
+
+
 def fetch_events(month: int, day: int):
     url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{month:02d}/{day:02d}"
     headers = {"User-Agent": "history-shorts-bot/1.0 (personal project)"}
@@ -75,6 +108,13 @@ def pick_topic():
     if pages:
         page_title = pages[0].get("title")
         title = pages[0].get("normalizedtitle") or pages[0].get("displaytitle")
+
+    for page in pages[:2]:
+        extra = fetch_page_media(page.get("title"), limit=4)
+        for src in extra:
+            if src not in thumbnails:
+                thumbnails.append(src)
+    thumbnails = thumbnails[:6]
 
     topic = {
         "key": key,
