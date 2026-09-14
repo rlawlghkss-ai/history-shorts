@@ -82,4 +82,42 @@ def build_script(topic: dict) -> dict:
 
     title_topic_en = topic.get("display_title")
     title_topic = translate_to_korean(title_topic_en) if title_topic_en else fact[:18]
-    title =
+    title = f"{year}년 오늘, {title_topic} #shorts #세계사 #역사"
+    if len(title) > 95:
+        title = title[:92] + "..."
+
+    description = (
+        f"{fact}\n\n"
+        f"매일 아침 9시, 세계사 속 오늘의 사건을 1분으로 만나보세요.\n"
+        f"#세계사 #오늘의역사 #shorts #history"
+    )
+
+    tags = ["세계사", "오늘의역사", "역사", "shorts", "쇼츠", "history", "onthisday"]
+
+    script = {
+        "key": topic["key"],
+        "narration": full_script,
+        "hook": hook,
+        "body": body,
+        "outro": outro,
+        "title": title,
+        "description": description,
+        "tags": tags,
+        "thumbnail_url": topic.get("thumbnail_url"),
+        "thumbnail_urls": topic.get("thumbnail_urls") or [],
+        "fact_en": fact_en,
+    }
+
+    os.makedirs(os.path.dirname(SCRIPT_PATH), exist_ok=True)
+    with open(SCRIPT_PATH, "w", encoding="utf-8") as f:
+        json.dump(script, f, ensure_ascii=False, indent=2)
+
+    print("생성된 대본:")
+    print(full_script)
+    return script
+
+
+if __name__ == "__main__":
+    with open(TOPIC_PATH, "r", encoding="utf-8") as f:
+        topic = json.load(f)
+    build_script(topic)
