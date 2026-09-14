@@ -62,7 +62,7 @@ def pick_topic():
     random.shuffle(candidates)
     chosen = candidates[0]
 
-       key = f"{chosen.get('year')}_{chosen['text'][:20]}"
+    key = f"{chosen.get('year')}_{chosen['text'][:20]}"
     title = None
     page_title = None
     thumbnails = []
@@ -86,3 +86,16 @@ def pick_topic():
         "thumbnail_urls": thumbnails,
         "date_kst": now_kst.strftime("%Y-%m-%d"),
     }
+
+    os.makedirs(os.path.dirname(TOPIC_OUTPUT_PATH), exist_ok=True)
+    with open(TOPIC_OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(topic, f, ensure_ascii=False, indent=2)
+
+    used.append({"key": key, "date_used": now_kst.strftime("%Y-%m-%d")})
+    save_used_topics(used)
+
+    print(f"선택된 주제: {topic['year']}년 - {topic['text'][:40]}...")
+
+
+if __name__ == "__main__":
+    pick_topic()
