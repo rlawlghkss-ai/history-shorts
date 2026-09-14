@@ -5,10 +5,15 @@ data/script.json 으로 저장한다.
 
 무료로 동작하도록 LLM API 없이 템플릿 기반으로 문장을 재구성한다.
 (위키백과 원문을 그대로 읽지 않고, 핵심 사실만 뽑아 새로 문장을 쓴다)
+
+topic.json의 사실 문장은 영어 위키백과에서 온 것이라, 무료 번역기
+(deep-translator, 구글 번역 비공식 무료 래퍼)로 한국어로 옮긴 뒤 사용한다.
 """
 import json
 import os
 import re
+
+from deep_translator import GoogleTranslator
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOPIC_PATH = os.path.join(BASE_DIR, "data", "topic.json")
@@ -32,21 +37,30 @@ def clean_text(text: str) -> str:
     return text
 
 
+def translate_to_korean(text: str) -> str:
+    try:
+        return GoogleTranslator(source="en", target="ko").translate(text)
+    except Exception as e:
+        print(f"번역 실패, 원문 그대로 사용: {e}")
+        return text
+
+
 def build_script(topic: dict) -> dict:
     year = topic.get("year") or "역사 속"
-    fact = clean_text(topic["text"])
+    fact_en = clean_text(topic["text"])
+    fact = translate_to_korean(fact_en)
 
     hook = HOOK_TEMPLATES[abs(hash(topic["key"])) % len(HOOK_TEMPLATES)].format(year=year)
     outro = OUTRO_TEMPLATES[abs(hash(topic["key"]) // 7) % len(OUTRO_TEMPLATES)]
 
-    # 본문: 위키 사실 문장을 그대로 붙이지 않고 짧게 정리
     body = fact
     if not body.endswith((".", "!", "?", "다")):
         body += "."
 
     full_script = f"{hook} {body} {outro}"
 
-    title_topic = topic.get("display_title") or fact[:18]
+    title_topic_en = topic.get("display_title")
+    title_topic = translate_to_korean(title_topic_en) if title_topic_en else fact[:18]
     title = f"{year}년 오늘, {title_topic} #shorts #세계사 #역사"
     if len(title) > 95:
         title = title[:92] + "..."
