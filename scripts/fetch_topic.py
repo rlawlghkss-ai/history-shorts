@@ -62,17 +62,19 @@ def pick_topic():
     random.shuffle(candidates)
     chosen = candidates[0]
 
-    key = f"{chosen.get('year')}_{chosen['text'][:20]}"
+       key = f"{chosen.get('year')}_{chosen['text'][:20]}"
     title = None
-    thumbnail = None
     page_title = None
+    thumbnails = []
     pages = chosen.get("pages") or []
-    if pages:
-        page = pages[0]
-        page_title = page.get("title")
-        title = page.get("normalizedtitle") or page.get("displaytitle")
+    for page in pages:
         thumb = page.get("thumbnail") or {}
-        thumbnail = thumb.get("source")
+        src = thumb.get("source")
+        if src and src not in thumbnails:
+            thumbnails.append(src)
+    if pages:
+        page_title = pages[0].get("title")
+        title = pages[0].get("normalizedtitle") or pages[0].get("displaytitle")
 
     topic = {
         "key": key,
@@ -80,19 +82,7 @@ def pick_topic():
         "text": chosen["text"],
         "page_title": page_title,
         "display_title": title,
-        "thumbnail_url": thumbnail,
+        "thumbnail_url": thumbnails[0] if thumbnails else None,
+        "thumbnail_urls": thumbnails,
         "date_kst": now_kst.strftime("%Y-%m-%d"),
     }
-
-    os.makedirs(os.path.dirname(TOPIC_OUTPUT_PATH), exist_ok=True)
-    with open(TOPIC_OUTPUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(topic, f, ensure_ascii=False, indent=2)
-
-    used.append({"key": key, "date_used": now_kst.strftime("%Y-%m-%d")})
-    save_used_topics(used)
-
-    print(f"선택된 주제: {topic['year']}년 - {topic['text'][:40]}...")
-
-
-if __name__ == "__main__":
-    pick_topic()
