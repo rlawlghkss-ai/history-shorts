@@ -1,5 +1,5 @@
 """
-전체 파이프라인 실행: 주제선정 -> 대본 -> 음성/자막 -> 영상 -> 업로드
+전체 파이프라인 실행: 주제선정 -> 대본 -> AI 이미지 -> 음성/자막 -> 영상 -> 업로드
 """
 import subprocess
 import sys
@@ -20,6 +20,7 @@ def run(script_name: str):
 if __name__ == "__main__":
     run("fetch_topic.py")
     run("generate_script.py")
+    run("generate_images.py")
     run("generate_audio.py")
     run("generate_video.py")
     run("upload_youtube.py")
