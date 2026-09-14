@@ -19,7 +19,7 @@ IMAGE_DIR = os.path.join(BASE_DIR, "data", "images")
 VIDEO_PATH = os.path.join(BASE_DIR, "data", "video.mp4")
 
 W, H = 1080, 1920
-MAX_IMAGES = 4
+MAX_IMAGES = 6
 
 
 def download_images(urls: list) -> list:
