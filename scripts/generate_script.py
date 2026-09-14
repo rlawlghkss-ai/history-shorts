@@ -6,14 +6,15 @@ data/script.json 으로 저장한다.
 무료로 동작하도록 LLM API 없이 템플릿 기반으로 문장을 재구성한다.
 (위키백과 원문을 그대로 읽지 않고, 핵심 사실만 뽑아 새로 문장을 쓴다)
 
-topic.json의 사실 문장은 영어 위키백과에서 온 것이라, 무료 번역기
-(deep-translator, 구글 번역 비공식 무료 래퍼)로 한국어로 옮긴 뒤 사용한다.
+topic.json의 사실 문장은 영어 위키백과에서 온 것이라, 무료 번역기로
+한국어로 옮긴 뒤 사용한다. (구글 번역이 서버에서 차단되면 MyMemory로 대체)
 """
 import json
 import os
 import re
+import sys
 
-from deep_translator import GoogleTranslator
+from deep_translator import GoogleTranslator, MyMemoryTranslator
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOPIC_PATH = os.path.join(BASE_DIR, "data", "topic.json")
@@ -37,18 +38,38 @@ def clean_text(text: str) -> str:
     return text
 
 
+def has_korean(text: str) -> bool:
+    return any("\uac00" <= ch <= "\ud7a3" for ch in text)
+
+
 def translate_to_korean(text: str) -> str:
-    try:
-        return GoogleTranslator(source="en", target="ko").translate(text)
-    except Exception as e:
-        print(f"번역 실패, 원문 그대로 사용: {e}")
+    if not text:
         return text
+    try:
+        result = GoogleTranslator(source="en", target="ko").translate(text)
+        if result and has_korean(result):
+            return result
+    except Exception as e:
+        print(f"구글 번역 실패: {e}")
+
+    try:
+        result = MyMemoryTranslator(source="en-GB", target="ko-KR").translate(text)
+        if result and has_korean(result):
+            return result
+    except Exception as e:
+        print(f"MyMemory 번역 실패: {e}")
+
+    print("번역이 모두 실패하여 원문을 그대로 사용합니다.")
+    return text
 
 
 def build_script(topic: dict) -> dict:
     year = topic.get("year") or "역사 속"
     fact_en = clean_text(topic["text"])
     fact = translate_to_korean(fact_en)
+    if not has_korean(fact):
+        print("번역에 계속 실패해 어색한 영어 발음 영상이 될 수 있어 오늘은 건너뜁니다.")
+        sys.exit(2)
 
     hook = HOOK_TEMPLATES[abs(hash(topic["key"])) % len(HOOK_TEMPLATES)].format(year=year)
     outro = OUTRO_TEMPLATES[abs(hash(topic["key"]) // 7) % len(OUTRO_TEMPLATES)]
@@ -83,6 +104,7 @@ def build_script(topic: dict) -> dict:
         "description": description,
         "tags": tags,
         "thumbnail_url": topic.get("thumbnail_url"),
+        "thumbnail_urls": topic.get("thumbnail_urls") or [],
     }
 
     os.makedirs(os.path.dirname(SCRIPT_PATH), exist_ok=True)
