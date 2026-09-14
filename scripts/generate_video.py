@@ -1,5 +1,6 @@
 """
-- 위키백과에서 이벤트와 연관된 이미지를 여러 장(최대 4장) 다운로드
+- 위키백과에서 이벤트와 연관된 이미지를 여러 장(최대 6장) 다운로드 (AI 이미지가 없을 때 대비용)
+- AI가 생성한 일러스트가 있으면 그것을 우선 사용
 - 오디오 길이를 이미지 수만큼 나눠 순서대로 장면 전환 (각 장면은 켄 번즈 확대 효과)
 - 이미지가 1장뿐이거나 없으면 그에 맞춰 단순하게 처리
 - 오디오 길이에 맞춰 영상 길이 설정, SRT 자막을 번인(하드코딩)
@@ -158,14 +159,22 @@ def build_video(images: list):
 
 
 if __name__ == "__main__":
-    with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
-        script = json.load(f)
+    import glob
 
-    urls = script.get("thumbnail_urls") or []
-    if not urls and script.get("thumbnail_url"):
-        urls = [script["thumbnail_url"]]
+    ai_images = sorted(glob.glob(os.path.join(IMAGE_DIR, "ai_*.jpg")))
 
-    images = download_images(urls)
+    if ai_images:
+        images = ai_images
+        print(f"AI 생성 이미지 {len(images)}장을 사용합니다.")
+    else:
+        print("AI 이미지가 없어 위키백과 사진으로 대체합니다.")
+        with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
+            script = json.load(f)
+        urls = script.get("thumbnail_urls") or []
+        if not urls and script.get("thumbnail_url"):
+            urls = [script["thumbnail_url"]]
+        images = download_images(urls)
+
     if not images:
         images = [make_solid_background()]
 
