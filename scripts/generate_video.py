@@ -32,7 +32,6 @@ def download_image(url: str) -> bool:
 
 
 def make_solid_background():
-    # ffmpeg로 단색(다크 네이비) 배경 이미지를 하나 만든다
     subprocess.run([
         "ffmpeg", "-y", "-f", "lavfi",
         "-i", f"color=c=0x14213D:s={W}x{H}",
@@ -53,27 +52,33 @@ def build_video():
     fps = 30
     total_frames = int(duration * fps)
 
-    # 켄 번즈: 1.0배 -> 1.15배로 천천히 확대하며 중앙 크롭
     zoompan = (
         f"scale=-2:{int(H*1.3)},"
         f"zoompan=z='min(zoom+0.0007,1.15)':d={total_frames}:"
         f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={W}x{H}:fps={fps}"
     )
 
-    subtitle_style = (
-        "FontName=Noto Sans KR,FontSize=17,PrimaryColour=&H00FFFFFF,"
-        "OutlineColour=&H00000000,BorderStyle=3,Outline=2,Shadow=0,"
-        "Alignment=2,MarginV=180"
-    )
-    subtitles_filter = f"subtitles={SRT_PATH}:force_style='{subtitle_style}'"
+    has_subtitles = os.path.exists(SRT_PATH) and os.path.getsize(SRT_PATH) > 0
 
-    filter_complex = f"{zoompan},{subtitles_filter}"
+    if has_subtitles:
+        subtitle_style = (
+            "FontName=Noto Sans KR,FontSize=17,PrimaryColour=&H00FFFFFF,"
+            "OutlineColour=&H00000000,BorderStyle=3,Outline=2,Shadow=0,"
+            "Alignment=2,MarginV=180"
+        )
+        escaped_srt_path = SRT_PATH.replace("\\", "\\\\").replace(":", "\\:")
+        subtitles_filter = f",subtitles='{escaped_srt_path}':force_style='{subtitle_style}'"
+    else:
+        print("자막 파일이 비어있거나 없어서 자막 없이 영상을 만듭니다.")
+        subtitles_filter = ""
+
+    video_filter = f"{zoompan}{subtitles_filter}"
 
     cmd = [
         "ffmpeg", "-y",
         "-loop", "1", "-i", IMAGE_PATH,
         "-i", AUDIO_PATH,
-        "-filter_complex", filter_complex,
+        "-vf", video_filter,
         "-map", "0:v", "-map", "1:a",
         "-c:v", "libx264", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "160k",
@@ -81,7 +86,27 @@ def build_video():
         "-t", str(duration),
         VIDEO_PATH,
     ]
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError:
+        if has_subtitles:
+            print("자막 포함 렌더링 실패, 자막 없이 다시 시도합니다.")
+            cmd_no_sub = [
+                "ffmpeg", "-y",
+                "-loop", "1", "-i", IMAGE_PATH,
+                "-i", AUDIO_PATH,
+                "-vf", zoompan,
+                "-map", "0:v", "-map", "1:a",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "160k",
+                "-shortest",
+                "-t", str(duration),
+                VIDEO_PATH,
+            ]
+            subprocess.run(cmd_no_sub, check=True)
+        else:
+            raise
+
     print(f"영상 저장 완료: {VIDEO_PATH}")
 
 
