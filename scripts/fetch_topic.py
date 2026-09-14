@@ -1,9 +1,11 @@
 """
-오늘 날짜의 '역사 속 오늘' 이벤트를 한국어 위키백과 REST API에서 가져와
+오늘 날짜의 '역사 속 오늘' 이벤트를 영어 위키백과 REST API에서 가져와
 아직 다루지 않은 주제를 하나 골라 data/topic.json 으로 저장한다.
+(한국어 위키백과는 이 기능을 지원하지 않아서 영어판을 쓰고, 대본 생성 단계에서
+ 무료 번역기로 한국어로 옮긴다)
 
 API는 무료이며 키가 필요 없다.
-https://ko.wikipedia.org/api/rest_v1/feed/onthisday/events/{month}/{day}
+https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{month}/{day}
 """
 import json
 import os
@@ -34,7 +36,7 @@ def save_used_topics(used):
 
 
 def fetch_events(month: int, day: int):
-    url = f"https://ko.wikipedia.org/api/rest_v1/feed/onthisday/events/{month:02d}/{day:02d}"
+    url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{month:02d}/{day:02d}"
     headers = {"User-Agent": "history-shorts-bot/1.0 (personal project)"}
     resp = requests.get(url, headers=headers, timeout=20)
     resp.raise_for_status()
@@ -47,7 +49,6 @@ def pick_topic():
     used = load_used_topics()
     used_keys = {u["key"] for u in used}
 
-    # 연도가 오래되고 설명이 충분히 긴 이벤트를 우선한다 (쇼츠 소재로 적합)
     candidates = [
         e for e in events
         if e.get("text") and len(e["text"]) >= 25
@@ -55,7 +56,6 @@ def pick_topic():
     ]
 
     if not candidates:
-        # 오늘자 새 소재가 없으면 예외 처리 — 워크플로우에서 스킵하도록 종료 코드로 신호
         print("사용 가능한 새 주제가 없습니다. 오늘은 건너뜁니다.")
         sys.exit(2)
 
